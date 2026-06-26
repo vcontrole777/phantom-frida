@@ -38,7 +38,11 @@ def get_source_patches(name: str, cap_name: str) -> list[tuple[str, str]]:
         # --- Android helper Java class (DEX embedded in server binary) ---
         # Must rename to prevent binary sweep from corrupting DEX, and to hide
         # the "re.frida.helper" process name which is a detection vector.
-        # Order: most specific first
+        # Order: most specific first.
+        # frida 17.15.3: FindClass uses slash format "re/frida/HelperBackend" —
+        # must patch slash format separately (dot-format patches don't cover JNI refs)
+        ("re/frida/HelperBackend", f"re/{name}/HelperBackend"),
+        ("re/frida/Helper", f"re/{name}/Helper"),
         ("re.frida.Helper", f"re.{name}.Helper"),
         ("re.frida.helper", f"re.{name}.helper"),
         ("re.frida.Gadget", f"re.{name}.Gadget"),
