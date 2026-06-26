@@ -224,20 +224,21 @@ LIBC_HOOK_PATCHES = {
     ],
 
     # gumexceptor-posix.c: disable signal/sigaction replacement
-    # Verified exact lines in 17.7.2:
+    # Verified exact lines in 17.15.3:
     #   gum_interceptor_replace (interceptor, gum_original_signal,
-    #       gum_exceptor_backend_replacement_signal, self, NULL);
+    #       gum_exceptor_backend_replacement_signal, NULL, &options);
     #   gum_interceptor_replace (interceptor, gum_original_sigaction,
-    #       gum_exceptor_backend_replacement_sigaction, self, NULL);
+    #       gum_exceptor_backend_replacement_sigaction, NULL, &options);
+    # NOTE: signature changed from 17.7.2 (self, NULL) -> 17.15.3 (NULL, &options)
     "exceptor": [
         ("gum_interceptor_replace (interceptor, gum_original_signal,",
          "// gum_interceptor_replace (interceptor, gum_original_signal,"),
-        ("gum_exceptor_backend_replacement_signal, self, NULL);",
-         "// gum_exceptor_backend_replacement_signal, self, NULL);"),
+        ("gum_exceptor_backend_replacement_signal, NULL, &options);",
+         "// gum_exceptor_backend_replacement_signal, NULL, &options);"),
         ("gum_interceptor_replace (interceptor, gum_original_sigaction,",
          "// gum_interceptor_replace (interceptor, gum_original_sigaction,"),
-        ("gum_exceptor_backend_replacement_sigaction, self, NULL);",
-         "// gum_exceptor_backend_replacement_sigaction, self, NULL);"),
+        ("gum_exceptor_backend_replacement_sigaction, NULL, &options);",
+         "// gum_exceptor_backend_replacement_sigaction, NULL, &options);"),
     ],
 }
 
@@ -426,11 +427,12 @@ def get_stability_patches_17(frida_dir: Path) -> list[dict]:
             "description": "Skip perfetto_hprof_ thread during enumeration (prevents SEGV on some devices)",
             "file": "subprojects/frida-gum/gum/backend-linux/gumprocess-linux.c",
             # Verified 17.7.2: variable is entry->name, NOT details.name
+            # In 17.15.3: carry_on line is inside if(gum_fill_thread_details...) so
+            # goto+label approach breaks — use negated condition instead (no goto needed)
             "old": "    carry_on = func (entry, user_data);",
             "new": (
-                '    if (entry->name != NULL && strcmp (entry->name, "perfetto_hprof_") == 0)\n'
-                '        goto skip;\n'
-                '    carry_on = func (entry, user_data);'
+                '    if (entry->name == NULL || strcmp (entry->name, "perfetto_hprof_") != 0)\n'
+                '        carry_on = func (entry, user_data);'
             ),
         },
     ]
@@ -463,4 +465,3 @@ Detection vectors addressed:
 15. Build config defines:    FRIDA_HELPER_PATH, FRIDA_AGENT_PATH -- renamed
 16. Asset directory:         libdir/frida -- libdir/custom
 """
-
